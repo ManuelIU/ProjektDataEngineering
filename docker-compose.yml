@@ -1,7 +1,7 @@
 services:
   minio:
     image: docker.io/minio/minio
-    container_name: minio-container
+    container_name: minio
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -11,7 +11,41 @@ services:
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
-    restart: always
+    restart: unless-stopped
+  
+  spark-master:
+    build:
+      context: ./spark
+      dockerfile: Dockerfile
+    image: pde-spark-master
+    container_name: spark-master
+    environment:
+      - SPARK_MODE=master
+    ports:
+      - "7077:7077"
+      - "8080:8080"
+    depends_on:
+      - minio
+    volumes:
+      - ./spark:/spark
+    restart: unless-stopped
+
+  spark-worker:
+    build:
+      context: ./spark
+      dockerfile: Dockerfile
+    image: pde-spark-worker
+    container_name: spark-worker
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+    depends_on:
+      - spark-master
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./spark:/spark
+    restart: unless-stopped
 
 volumes:
   minio_data:
