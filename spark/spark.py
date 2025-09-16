@@ -1,4 +1,6 @@
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+from pyspark.sql.types import TimestampType, DoubleType
 from py4j.java_gateway import java_import
 from datetime import datetime
 
@@ -9,6 +11,13 @@ target_prefix = f"s3a://{bucket_name}/processed/weather/"
 today_str = datetime.today().strftime("%Y-%m-%d")
 target_prefix_with_date = target_prefix + today_str + "/"
 
+db_url = "jdbc:postgresql://postgres:5432/dataEngineering_db"
+db_properties = {
+    "user": "postgres",
+    "password": "postgres",
+    "driver": "org.postgresql.Driver"
+}
+
 spark = (
     SparkSession.builder.appName("ReadFromMinIO")
     .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000")
@@ -16,7 +25,10 @@ spark = (
     .config("spark.hadoop.fs.s3a.secret.key", "minioadmin")
     .config('spark.hadoop.fs.s3a.impl', 'org.apache.hadoop.fs.s3a.S3AFileSystem')
     .config('spark.hadoop.fs.s3a.path.style.access', 'true')
-    .config("spark.jars", "/opt/bitnami/spark/jars/hadoop-aws-3.4.2.jar,/opt/bitnami/spark/jars/bundle-2.33.1.jar")
+    .config("spark.jars", 
+            "/opt/bitnami/spark/jars/hadoop-aws-3.4.2.jar,\
+            /opt/bitnami/spark/jars/bundle-2.33.1.jar,\
+            /opt/bitnami/spark/jars/postgresql-42.7.7.jar")
     .getOrCreate()
 )
 
@@ -44,9 +56,26 @@ def main():
 
     try:
         df = spark.read.option("header", True).csv(source_prefix)
-        df.show()
-    except Exception:
-        print("No csv files found!")
+
+        df = (
+            df.withColumnRenamed("StartTime(UTC)", "StartTimeUTC")
+              .withColumnRenamed("EndTime(UTC)", "EndTimeUTC")
+              .withColumnRenamed("Precipitation(in)", "PrecipitationIn")
+        )
+
+        df = (
+            df.withColumn("StartTimeUTC", col("StartTimeUTC").cast(TimestampType()))
+              .withColumn("EndTimeUTC", col("EndTimeUTC").cast(TimestampType()))
+              .withColumn("PrecipitationIn", col("PrecipitationIn").cast(DoubleType()))
+              .withColumn("LocationLat", col("LocationLat").cast(DoubleType()))
+              .withColumn("LocationLng", col("LocationLng").cast(DoubleType()))
+        )
+
+        df.write.mode("append").jdbc(url=db_url, table="weather_data", properties=db_properties)
+        print(f"{df.count()} records written to PostgreSQL!")
+        #df.show()
+    except Exception as e:
+        print("No csv files found or error while processing:", e)
         return
 
     input_files = df.inputFiles()
