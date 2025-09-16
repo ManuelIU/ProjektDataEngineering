@@ -47,6 +47,22 @@ services:
       - ./spark:/spark
     restart: unless-stopped
 
+  postgres:
+    image: postgres:14
+    container_name: postgres
+    environment:
+      POSTGRES_DB: dataEngineering_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pgdata:/var/lib/postgresql/data
+
+
 volumes:
   minio_data:
+    driver: local
+  pgdata:
     driver: local
