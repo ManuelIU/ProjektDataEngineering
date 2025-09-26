@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS weather_data (
+CREATE TABLE IF NOT EXISTS Weather_Data (
     EventId          VARCHAR(50) PRIMARY KEY,
     Type             VARCHAR(50),
     Severity         VARCHAR(50),
@@ -12,5 +12,5 @@ CREATE TABLE IF NOT EXISTS weather_data (
     City             VARCHAR(100),
     County           VARCHAR(100),
     State            CHAR(2),
-    Zipcode          VARCHAR(10)
+    ZipCode          VARCHAR(10)
 );

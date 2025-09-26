@@ -1,12 +1,15 @@
-import pathlib
+from pathlib import Path
 from minio import Minio
 from minio.error import S3Error
+import os
+
+bucket_folder= Path(os.environ["BUCKET_FOLDER"])
+csv_path = Path(os.environ["CSV_PATH"])
 
 bucket_name = "dataengineeringbucket"
-csv_path = pathlib.Path('data')
 
 client = Minio(
-        "localhost:9000",
+        "minio:9000",
         access_key="minioadmin",
         secret_key="minioadmin",
         secure=False
@@ -24,7 +27,7 @@ def create_bucket_if_not_exist():
 
 def upload_csv_files_to_minio():
     for csv in csv_path.glob("*.csv"):
-        dest = f"weather/{csv.name}"
+        dest = f"{bucket_folder}/{csv.name}"
         try:
             # Check if the file already exists
             client.stat_object(bucket_name, dest)
