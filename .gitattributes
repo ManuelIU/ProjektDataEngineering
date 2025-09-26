@@ -1,1 +1,2 @@
-spark/jars/bundle-2.33.1.jar filter=lfs diff=lfs merge=lfs -text
+dockerfiles/jars/bundle-2.29.52.jar filter=lfs diff=lfs merge=lfs -text
+dockerfiles/jars/aws-java-sdk-bundle-1.12.262.jar filter=lfs diff=lfs merge=lfs -text

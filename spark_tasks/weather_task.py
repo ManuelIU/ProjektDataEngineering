@@ -3,10 +3,12 @@ from pyspark.sql.functions import col
 from pyspark.sql.types import TimestampType, DoubleType
 from py4j.java_gateway import java_import
 from datetime import datetime
+from pyspark import SparkConf
+from pyspark.sql.functions import expr
 
 bucket_name = "dataengineeringbucket"
-source_prefix = f"s3a://{bucket_name}/weather/"
-target_prefix = f"s3a://{bucket_name}/processed/weather/"
+source_prefix = f"s3a://{bucket_name}/weather_data/"
+target_prefix = f"s3a://{bucket_name}/processed/weather_data/"
 
 today_str = datetime.today().strftime("%Y-%m-%d")
 target_prefix_with_date = target_prefix + today_str + "/"
@@ -18,17 +20,19 @@ db_properties = {
     "driver": "org.postgresql.Driver"
 }
 
+conf = (SparkConf()
+    .setAppName("App_Name")
+    .setMaster("spark://spark-master:7077")
+    .set("spark.ui.port", "8081"))
+
 spark = (
     SparkSession.builder.appName("ReadFromMinIO")
+    .config(conf=conf)
     .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000")
     .config("spark.hadoop.fs.s3a.access.key", "minioadmin")
     .config("spark.hadoop.fs.s3a.secret.key", "minioadmin")
     .config('spark.hadoop.fs.s3a.impl', 'org.apache.hadoop.fs.s3a.S3AFileSystem')
     .config('spark.hadoop.fs.s3a.path.style.access', 'true')
-    .config("spark.jars", 
-            "/opt/bitnami/spark/jars/hadoop-aws-3.4.2.jar,\
-            /opt/bitnami/spark/jars/bundle-2.33.1.jar,\
-            /opt/bitnami/spark/jars/postgresql-42.7.7.jar")
     .getOrCreate()
 )
 
@@ -51,17 +55,33 @@ def move_processed_files(file_list):
         print(f"Moving {file} -> {dst.toString()}")
         fs.rename(sc._jvm.Path(file), dst)
 
+def filter_new_records(df, db_url, db_properties):
+    try:
+        last_ts_df = spark.read.jdbc(
+            url=db_url,
+            table="(SELECT MAX(starttimeutc) AS max_ts FROM weather_data) as t",
+            properties=db_properties
+        )
+
+        last_ts = last_ts_df.collect()[0]["max_ts"]
+
+        if last_ts is not None:
+            print(f"Last available StartTimeUTC in DB: {last_ts}")
+            df = df.filter(col("StartTimeUTC") > last_ts)
+        else:
+            print("No existing data found, all records will be taken.")
+
+    except Exception as e:
+        print(f"Error loading last timestamp: {e}")
+
+    return df
+
+
 def main():
     print("Spark service started!")
 
     try:
         df = spark.read.option("header", True).csv(source_prefix)
-
-        df = (
-            df.withColumnRenamed("StartTime(UTC)", "StartTimeUTC")
-              .withColumnRenamed("EndTime(UTC)", "EndTimeUTC")
-              .withColumnRenamed("Precipitation(in)", "PrecipitationIn")
-        )
 
         df = (
             df.withColumn("StartTimeUTC", col("StartTimeUTC").cast(TimestampType()))
@@ -71,16 +91,26 @@ def main():
               .withColumn("LocationLng", col("LocationLng").cast(DoubleType()))
         )
 
-        df.write.mode("append").jdbc(url=db_url, table="weather_data", properties=db_properties)
-        print(f"{df.count()} records written to PostgreSQL!")
-        #df.show()
-    except Exception as e:
-        print("No csv files found or error while processing:", e)
-        return
+        df_filtered = filter_new_records(df, db_url, db_properties)
 
+        if df_filtered.count() > 0:
+            df_filtered.write.mode("append").jdbc(
+                url=db_url,
+                table="weather_data",
+                properties=db_properties
+            )
+            print(f"{df_filtered.count()} new records written to PostgreSQL!")
+            df_filtered.show()
+        else:
+            print("No new records found – nothing written.")
+
+    except Exception as e:
+        print(f"Error processing CSV files: {e}")
+        spark.stop()
+        return
+    
     input_files = df.inputFiles()
     move_processed_files(input_files)
-
 
     spark.stop()
     print("Spark service complete!")
