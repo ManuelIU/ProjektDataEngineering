@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS Weather_Data (
     Severity         VARCHAR(50),
     StartTimeUTC     TIMESTAMP,
     EndTimeUTC       TIMESTAMP,
-    PrecipitationIn  NUMERIC(5,2),
+    PrecipitationIn  NUMERIC(7,2),
     TimeZone         VARCHAR(50),
     AirportCode      VARCHAR(10),
     LocationLat      NUMERIC(9,6),
