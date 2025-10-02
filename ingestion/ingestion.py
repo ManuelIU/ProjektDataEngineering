@@ -1,57 +1,79 @@
-from pathlib import Path
 from minio import Minio
 from minio.error import S3Error
+from pathlib import Path
+import logging
 import os
 
-bucket_folder= Path(os.environ["BUCKET_FOLDER"])
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+log = logging.getLogger(__name__)
+
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "minio:9000")
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
+MINIO_BUCKET_NAME = os.getenv("MINIO_BUCKET_NAME", "dataengineeringbucket")
+
+bucket_folder = Path(os.environ["BUCKET_FOLDER"])
 csv_path = Path(os.environ["CSV_PATH"])
 
-bucket_name = "dataengineeringbucket"
-
 client = Minio(
-        "minio:9000",
-        access_key="minioadmin",
-        secret_key="minioadmin",
-        secure=False
+    MINIO_ENDPOINT,
+    access_key=MINIO_ACCESS_KEY,
+    secret_key=MINIO_SECRET_KEY,
+    secure=False
 )
 
 
-def create_bucket_if_not_exist():
+def create_bucket_if_not_exist() -> None:
     try:
-        if not client.bucket_exists(bucket_name):
-            client.make_bucket(bucket_name)
-            print(f"Bucket '{bucket_name}' was successfully created.")
+        if not client.bucket_exists(MINIO_BUCKET_NAME):
+            client.make_bucket(MINIO_BUCKET_NAME)
+            log.info(f"Bucket '{MINIO_BUCKET_NAME}' was successfully created.")
     except S3Error as e:
-        print(f"Error creating bucket: {e}")
+        log.error(f"Error creating bucket: {e}")
 
 
-def upload_csv_files_to_minio():
-    for csv in csv_path.glob("*.csv"):
+def file_exists(bucket: str, object_name: str) -> bool:
+    try:
+        client.stat_object(bucket, object_name)
+        return True
+    except S3Error as e:
+        if e.code == "NoSuchKey":
+            return False
+        raise
+
+
+def upload_csv_files_to_minio() -> None:
+    files = list(csv_path.glob("*.csv"))
+    if not files:
+        log.info("No CSV files found to upload.")
+        return
+    
+    for csv in files:
         dest = f"{bucket_folder}/{csv.name}"
-        try:
-            # Check if the file already exists
-            client.stat_object(bucket_name, dest)
-            print(f"{csv.name} exists in MinIO, skipping upload.")
-        except S3Error as e:
-            # If the file does not exist, upload it
-            if e.code == 'NoSuchKey':
-                print(f"{csv.name} does not exist in MinIO, uploading...")
-                client.fput_object(bucket_name, dest, str(csv))
-            else:
-                print(f"Error checking {csv.name}: {e}")
+        if file_exists(MINIO_BUCKET_NAME, dest):
+            log.info(f"{csv.name} exists in MinIO, skipping upload.")
+            csv.unlink()
+        else:
+            try:
+                log.info(f"Uploading {csv.name} -> {dest}")
+                client.fput_object(MINIO_BUCKET_NAME, dest, str(csv))
+                csv.unlink()
+            except Exception as upload_error:
+                log.error(f"Error uploading {csv.name}: {upload_error}")
         
 
 def main():
-    print("Ingestion start!")
+    log.info("Ingestion start!")
+
+    if not csv_path.exists() or not csv_path.is_dir():
+        raise SystemExit(f"CSV-directory not found: {csv_path}") 
 
     create_bucket_if_not_exist()
 
-    if not csv_path.exists() and not csv_path.is_dir():
-        raise SystemExit(f"CSV-directory not found: {csv_path}") 
-
     upload_csv_files_to_minio()
 
-    print("Ingestion complete!")
+    log.info("Ingestion complete!")
 
 if __name__ == "__main__":
     main()
