@@ -7,6 +7,7 @@ from pyspark.sql.types import TimestampType, DoubleType
 from pyspark.sql.functions import expr
 import logging
 import os
+from zoneinfo import ZoneInfo
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
@@ -116,7 +117,7 @@ def move_processed_files(file_list):
     for file in file_list:
         filename = os.path.basename(file)
 
-        timestamp = datetime.now().strftime("%H%M%S")
+        timestamp = datetime.now(ZoneInfo("Europe/Berlin")).strftime("%H%M%S")
         unique_name = f"{timestamp}_{filename}"
 
         dst = sc._jvm.Path(os.path.join(target_folder_with_date, unique_name))

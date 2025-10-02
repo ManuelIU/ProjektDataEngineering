@@ -14,3 +14,6 @@ CREATE TABLE IF NOT EXISTS Weather_Data (
     State            CHAR(2),
     ZipCode          VARCHAR(10)
 );
+
+CREATE DATABASE airflow_meta;
+GRANT ALL PRIVILEGES ON DATABASE airflow_meta TO postgres;
