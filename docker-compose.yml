@@ -109,11 +109,12 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW__WEBSERVER__SECRET_KEY}
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_AIRFLOW_DB}
       AIRFLOW__CORE__DEFAULT_TIMEZONE: ${TIMEZONE}
+      TZ: ${TIMEZONE}
     volumes:
       - ./dags:/opt/airflow/dags:ro
-      - ./ingestion:/opt/airflow/ingestion:ro
       - ./spark_tasks:/opt/airflow/spark_tasks:ro
       - ./data:/opt/airflow/data
     command: >
@@ -135,13 +136,14 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW__WEBSERVER__SECRET_KEY}
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_AIRFLOW_DB}
       AIRFLOW_CONN_SPARK_DEFAULT: spark://spark-master:7077
       AIRFLOW__CORE__DEFAULT_TIMEZONE: ${TIMEZONE}
+      TZ: ${TIMEZONE}
       PYTHONDONTWRITEBYTECODE: "1"
     volumes:
       - ./dags:/opt/airflow/dags:ro
-      - ./ingestion:/opt/airflow/ingestion:ro
       - ./spark_tasks:/opt/airflow/spark_tasks:ro
       - ./data:/opt/airflow/data
     command: ["airflow", "scheduler"]
@@ -166,13 +168,14 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: "False"
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW__WEBSERVER__SECRET_KEY}
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "False"
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_AIRFLOW_DB}
       AIRFLOW_CONN_SPARK_DEFAULT: spark://spark-master:7077
       AIRFLOW__CORE__DEFAULT_TIMEZONE: ${TIMEZONE}
+      TZ: ${TIMEZONE}
     volumes:
       - ./dags:/opt/airflow/dags:ro
-      - ./ingestion:/opt/airflow/ingestion:ro
       - ./spark_tasks:/opt/airflow/spark_tasks:ro
       - ./data:/opt/airflow/data
     ports:

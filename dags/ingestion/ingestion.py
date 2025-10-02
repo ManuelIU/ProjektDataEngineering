@@ -13,8 +13,8 @@ MINIO_ROOT_USER = os.getenv("MINIO_ROOT_USER", "minioadmin")
 MINIO_ROOT_PASSWORD = os.getenv("MINIO_ROOT_PASSWORD", "minioadmin")
 MINIO_BUCKET_NAME = os.getenv("MINIO_BUCKET_NAME", "dataengineeringbucket")
 
-bucket_folder = Path(os.environ["BUCKET_FOLDER"])
 csv_path = Path(os.environ["CSV_PATH"])
+bucket_folder = Path(os.environ["BUCKET_FOLDER"])
 
 client = Minio(
     MINIO_ENDPOINT,

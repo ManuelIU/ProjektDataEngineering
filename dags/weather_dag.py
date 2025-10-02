@@ -14,7 +14,7 @@ AIRFLOW_SPARK_JARS = os.getenv("AIRFLOW_SPARK_JARS", "/opt/spark/jars/hadoop-aws
 
 default_args = {
     "owner": "user",
-    "retries": 3,
+    "retries": 0,
     "retry_delay": timedelta(minutes=5),
 }
 
@@ -30,7 +30,7 @@ with DAG(
     def run_ingestion(**context):
         os.environ["CSV_PATH"] = AIRFLOW_WEATHER_DATA_DIR
         os.environ["BUCKET_FOLDER"] = AIRFLOW_MINIO_WEATHER_BUCKET_FOLDER
-        import ingestion.ingestion as ingestion
+        from ingestion import ingestion
         ingestion.main()
 
     ingestion_task = PythonOperator(
