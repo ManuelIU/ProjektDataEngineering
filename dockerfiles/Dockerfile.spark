@@ -1,4 +1,10 @@
-FROM bitnami/spark:3.5.6
+FROM apache/spark:3.5.6
+
+LABEL maintainer="Manuel Gußmagg - manuel.gussmagg@iu-study.org" \
+      org.opencontainers.image.source="https://github.com/ManuelIU/ProjektDataEngineering" \
+      org.opencontainers.image.description="Spark Service"
 
 USER root
-COPY jars/*.jar /opt/bitnami/spark/jars/
+COPY --chown=spark:spark jars/ /opt/spark/jars/
+
+USER spark
