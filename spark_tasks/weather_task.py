@@ -13,48 +13,47 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger(__name__)
 
 MINIO_BUCKET_NAME = os.getenv("MINIO_BUCKET_NAME", "dataengineeringbucket")
-MINIO_WEATHER_SOURCE_FOLDER = os.getenv("MINIO_WEATHER_SOURCE_FOLDER", f"s3a://{MINIO_BUCKET_NAME}/weather_data/")
-MINIO_WEATHER_TARGET_FOLDER = os.getenv("MINIO_WEATHER_TARGET_FOLDER", f"s3a://{MINIO_BUCKET_NAME}/processed/weather_data/")
+MINIO_WEATHER_SOURCE_FOLDER = os.getenv("MINIO_WEATHER_SOURCE_FOLDER")
+MINIO_WEATHER_TARGET_FOLDER = os.getenv("MINIO_WEATHER_TARGET_FOLDER")
 
-POSTGRES_URL = os.getenv("POSTGRES_URL", "jdbc:postgresql://postgres:5432/dataEngineering_db")
-POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "postgres")
-POSTGRES_DRIVER = os.getenv("POSTGRES_DRIVER", "org.postgresql.Driver")
+POSTGRES_URL = os.getenv("POSTGRES_URL")
+POSTGRES_USER = os.getenv("POSTGRES_USER")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+POSTGRES_DRIVER = os.getenv("POSTGRES_DRIVER")
 
-SPARK_CONF_MASTER = os.getenv("SPARK_CONF_MASTER", "spark://spark-master:7077")
-SPARK_CONF_UI_PORT = os.getenv("SPARK_CONF_UI_PORT", "8081")
+SPARK_CONF_MASTER = os.getenv("SPARK_CONF_MASTER")
+SPARK_CONF_UI_PORT = os.getenv("SPARK_CONF_UI_PORT")
 
-MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "minio:9000")
-MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
-MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT")
+MINIO_ROOT_USER = os.getenv("MINIO_ROOT_USER")
+MINIO_ROOT_PASSWORD = os.getenv("MINIO_ROOT_PASSWORD")
 
 today_str = datetime.today().strftime("%Y-%m-%d")
 target_folder_with_date = MINIO_WEATHER_TARGET_FOLDER + today_str + "/"
 
-db_properties = {
-    "user": POSTGRES_USER,
-    "password": POSTGRES_PASSWORD,
-    "driver": POSTGRES_DRIVER
-}
+def get_db_properties():
+    return {
+        "user": POSTGRES_USER,
+        "password": POSTGRES_PASSWORD,
+        "driver": POSTGRES_DRIVER
+    }
 
-conf = (SparkConf()
-    .setAppName("WeatherDataProcessor")
-    .setMaster(SPARK_CONF_MASTER)
-    .set("spark.ui.port", SPARK_CONF_UI_PORT))
+def get_spark() -> SparkSession:
+    conf = (SparkConf()
+        .setAppName("WeatherDataProcessor")
+        .setMaster(SPARK_CONF_MASTER)
+        .set("spark.ui.port", SPARK_CONF_UI_PORT))
 
-spark = (
-    SparkSession.builder.appName("ReadFromMinIO")
-    .config(conf=conf)
-    .config("spark.hadoop.fs.s3a.endpoint", f"http://{MINIO_ENDPOINT}")
-    .config("spark.hadoop.fs.s3a.access.key", MINIO_ACCESS_KEY)
-    .config("spark.hadoop.fs.s3a.secret.key", MINIO_SECRET_KEY)
-    .config('spark.hadoop.fs.s3a.impl', 'org.apache.hadoop.fs.s3a.S3AFileSystem')
-    .config('spark.hadoop.fs.s3a.path.style.access', 'true')
-    .getOrCreate()
-)
+    return (SparkSession.builder.appName("ReadFromMinIO")
+        .config(conf=conf)
+        .config("spark.hadoop.fs.s3a.endpoint", f"http://{MINIO_ENDPOINT}")
+        .config("spark.hadoop.fs.s3a.access.key", MINIO_ROOT_USER)
+        .config("spark.hadoop.fs.s3a.secret.key", MINIO_ROOT_PASSWORD)
+        .config('spark.hadoop.fs.s3a.impl', 'org.apache.hadoop.fs.s3a.S3AFileSystem')
+        .config('spark.hadoop.fs.s3a.path.style.access', 'true')
+        .getOrCreate())
 
-
-def read_weather_data():
+def read_weather_data(spark: SparkSession):
     df = spark.read.option("header", True).csv(MINIO_WEATHER_SOURCE_FOLDER)
 
     return (
@@ -66,12 +65,12 @@ def read_weather_data():
     )
 
 
-def filter_new_records(df):
+def filter_new_records(spark: SparkSession, df):
     try:
         last_ts_df = spark.read.jdbc(
             url=POSTGRES_URL,
             table="(SELECT MAX(starttimeutc) AS max_ts FROM weather_data) as t",
-            properties=db_properties
+            properties=get_db_properties()
         )
 
         last_ts = last_ts_df.collect()[0]["max_ts"]
@@ -94,14 +93,14 @@ def write_to_postgres(df):
         df.write.mode("append").jdbc(
             url=POSTGRES_URL,
             table="weather_data",
-            properties=db_properties,
+            properties=get_db_properties(),
         )
         log.info(f"{count} new records written to PostgreSQL!")
     else:
         log.info("No new records found – nothing written.")
 
 
-def move_processed_files(file_list):
+def move_processed_files(spark: SparkSession, file_list):
     sc = spark.sparkContext
     hadoop_conf = sc._jsc.hadoopConfiguration()
 
@@ -127,24 +126,23 @@ def move_processed_files(file_list):
 
 def main():
     log.info("Spark service started!")
-
+    spark = get_spark()
     try:
-        df = read_weather_data()
-        df_filtered = filter_new_records(df)
+        df = read_weather_data(spark)
+        df_filtered = filter_new_records(spark, df)
 
         write_to_postgres(df_filtered)
 
         input_files = df.inputFiles()
         if input_files:
-            move_processed_files(input_files)
+            move_processed_files(spark, input_files)
 
     except Exception as e:
         log.error(f"Error processing CSV files: {e}")
+    
+    finally:
         spark.stop()
-        return
-
-    spark.stop()
-    log.info("Spark service complete!")
+        log.info("Spark service complete!")
 
 
 if __name__ == "__main__":
