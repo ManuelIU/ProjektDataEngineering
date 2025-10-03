@@ -24,6 +24,8 @@ POSTGRES_DRIVER = os.getenv("POSTGRES_DRIVER")
 SPARK_CONF_MASTER = os.getenv("SPARK_CONF_MASTER")
 SPARK_CONF_UI_PORT = os.getenv("SPARK_CONF_UI_PORT")
 
+AIRFLOW_MINIO_WEATHER_BUCKET_FOLDER = os.getenv("AIRFLOW_MINIO_WEATHER_BUCKET_FOLDER")
+
 MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT")
 MINIO_ROOT_USER = os.getenv("MINIO_ROOT_USER")
 MINIO_ROOT_PASSWORD = os.getenv("MINIO_ROOT_PASSWORD")
@@ -92,7 +94,7 @@ def write_to_postgres(df):
     if count > 0:
         df.write.mode("append").jdbc(
             url=POSTGRES_URL,
-            table="weather_data",
+            table=AIRFLOW_MINIO_WEATHER_BUCKET_FOLDER,
             properties=get_db_properties(),
         )
         log.info(f"{count} new records written to PostgreSQL!")

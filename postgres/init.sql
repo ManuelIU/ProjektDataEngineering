@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS Weather_Data (
-    EventId          VARCHAR(50) PRIMARY KEY,
+    PrimaryID        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    EventId          VARCHAR(50) NOT NULL,
     Type             VARCHAR(50),
     Severity         VARCHAR(50),
     StartTimeUTC     TIMESTAMP,
