@@ -6,11 +6,11 @@ from airflow.providers.docker.operators.docker import DockerOperator
 from datetime import datetime, timedelta
 import os
 
-AIRFLOW_WEATHER_DATA_DIR = os.getenv("AIRFLOW_WEATHER_DATA_DIR", "/opt/airflow/data/weather_data")
-AIRFLOW_MINIO_WEATHER_BUCKET_FOLDER = os.getenv("AIRFLOW_MINIO_WEATHER_BUCKET_FOLDER", "weather_data")
-AIRFLOW_SPARK_APPLICATION = os.getenv("AIRFLOW_SPARK_APPLICATION", "/opt/airflow/spark_tasks/weather_task.py")
-AIRFLOW_SPARK_CONN_ID = os.getenv("AIRFLOW_SPARK_CONN_ID", "spark_default")
-AIRFLOW_SPARK_JARS = os.getenv("AIRFLOW_SPARK_JARS", "/opt/spark/jars/hadoop-aws-3.3.4.jar,/opt/spark/jars/bundle-2.29.52.jar,/opt/spark/jars/checker-qual-3.49.3.jar,/opt/spark/jars/wildfly-openssl-1.0.7.Final.jar,/opt/spark/jars/postgresql-42.7.7.jar,/opt/spark/jars/aws-java-sdk-bundle-1.12.262.jar")
+AIRFLOW_WEATHER_DATA_DIR = os.getenv("AIRFLOW_WEATHER_DATA_DIR")
+AIRFLOW_MINIO_WEATHER_BUCKET_FOLDER = os.getenv("AIRFLOW_MINIO_WEATHER_BUCKET_FOLDER")
+AIRFLOW_SPARK_APPLICATION = os.getenv("AIRFLOW_SPARK_APPLICATION")
+AIRFLOW_SPARK_CONN_ID = os.getenv("AIRFLOW_SPARK_CONN_ID")
+AIRFLOW_SPARK_JARS = os.getenv("AIRFLOW_SPARK_JARS")
 
 default_args = {
     "owner": "user",
