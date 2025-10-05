@@ -103,6 +103,7 @@ services:
       context: ./dockerfiles
       dockerfile: Dockerfile.airflow
     image: pde-airflow:local
+    pull_policy: never
     container_name: airflow-init
     depends_on:
       postgres:
@@ -126,6 +127,7 @@ services:
 
   airflow-scheduler:
     image: pde-airflow:local
+    pull_policy: never
     container_name: airflow-scheduler
     depends_on:
       postgres:
@@ -159,6 +161,7 @@ services:
   
   airflow-webserver:
     image: pde-airflow:local
+    pull_policy: never
     container_name: airflow-webserver
     depends_on:
       postgres:
